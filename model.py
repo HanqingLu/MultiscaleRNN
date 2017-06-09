@@ -8,6 +8,7 @@ from layers import HM_LSTM
 from utils import masked_NLLLoss
 import time
 
+
 class HM_Net(Module):
     def __init__(self, a, size_list, dict_size, embed_size):
         super(HM_Net, self).__init__()
@@ -26,13 +27,13 @@ class HM_Net(Module):
     def forward(self, inputs, mask):
         # inputs : batch_size * time_steps
         # mask : batch_size * time_steps
+
         emb = self.embed_in(Variable(inputs))  # batch_size * time_steps * embed_size
         outputs = self.HM_LSTM(emb)  # batch_size *
-
         time_steps = inputs.size(1)
         batch_size = inputs.size(0)
-
-        batch_loss = Variable(torch.zeros(batch_size)).cuda()
+        mask = Variable(mask, requires_grad=False)
+        batch_loss = Variable(torch.zeros(batch_size).cuda())
 
         for i in range(time_steps):
             h_1 = outputs[4 * i].t()  # batch_size * size_list[0]
@@ -50,6 +51,7 @@ class HM_Net(Module):
             h_e = self.relu(h_e1 + h_e2)
 
             word = self.logsoftmax(h_e)  # batch_size * dict_size
+
             batch_loss += self.loss(word, inputs[:, i], mask[:, i])  # batch_size * 1
 
         return batch_loss

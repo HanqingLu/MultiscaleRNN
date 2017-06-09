@@ -10,6 +10,7 @@ import torch.optim as optim
 import numpy
 import torch.nn.functional as Func
 import os
+from utils import reverse
 
 
 def prepare_data(seqs_data):
@@ -41,17 +42,17 @@ def validation(valid, HM_model):
     for batch in valid:
         it += 1
         inputs, mask = prepare_data(batch)
+        # print reverse(inputs[0, :], '../data/dict.pkl')
         probs = HM_model(inputs, mask)
-        # print type(probs)
         PPL = 0.0
-        PPL += torch.exp(probs.data/mask.sum(1)).sum(0)
-
-        total_PPL += PPL/inputs.size(0)
+        # print probs
+        PPL += torch.exp(probs.data/mask.sum(1)).mean(0)
+        total_PPL += PPL
 
     return total_PPL/it
 
 
-def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="dict.pkl",
+def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
           size_list=[512, 512], dict_size=5000, embed_size=128,
           batch_size=80, maxlen=100, learning_rate=0.1, max_epoch=100,
           valid_iter=1, show_iter=1, init='model.init.pt', reload_=True, saveto='model.pt'):
@@ -90,13 +91,13 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="dict.
                 continue
             optimizer.zero_grad()  # 0.0001s used
             inputs, mask = prepare_data(batch)  # 0.002s used
-            batch_loss = HM_model(inputs, mask)  # 3-5s used
+            batch_loss = HM_model(inputs, mask)  # 3s used
             loss = batch_loss.sum(0)
             loss.backward()  # 3s used
             optimizer.step()  # 0.001s used
 
             if it % show_iter == 0:
-                print 'iter: ', it, ' elapse:', time.time() - start_time  # , ' train loss:', loss.data
+                print 'iter: ', it, ' elapse:', time.time() - start_time , ' train loss:', loss.data
 
             if it % valid_iter == 0:
                 PPL = validation(valid, HM_model)

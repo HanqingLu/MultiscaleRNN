@@ -4,7 +4,7 @@ import torch.nn.functional as Func
 from torch.nn import Module, Parameter
 import math
 from utils import hard_sigm, bound
-
+import time
 # class bound(Function):
 #     def forward(self, x):
 #         self.save_for_backward(x)
@@ -40,20 +40,21 @@ class HM_LSTMCell(Module):
         self.W_01 = Parameter(torch.cuda.FloatTensor(4 * self.hidden_size + 1, self.bottom_size))
         self.bias = Parameter(torch.cuda.FloatTensor(4 * self.hidden_size + 1))
 
-    def reset_papameters(self):
+        self.reset_parameters()
+
+    def reset_parameters(self):
         stdv = 1.0 / math.sqrt(self.hidden_size)
         for par in self.parameters():
             par.data.uniform_(-stdv, stdv)
 
     def forward(self, c, h_bottom, h, h_top, z, z_bottom):
         # h_bottom.size = bottom_size * batch_size
-
         s_recur = torch.mm(self.W_01, h_bottom)
         if not self.last_layer:
             s_topdown_ = torch.mm(self.U_21, h_top)
             s_topdown = z.expand_as(s_topdown_) * s_topdown_
         else:
-            s_topdown = Variable(torch.zeros(s_recur.size()), requires_grad=False).cuda()
+            s_topdown = Variable(torch.zeros(s_recur.size()).cuda(), requires_grad=False).cuda()
         s_bottomup_ = torch.mm(self.U_11, h)
         s_bottomup = z_bottom.expand_as(s_bottomup_) * s_bottomup_
 
@@ -66,7 +67,7 @@ class HM_LSTMCell(Module):
         z_hat = hard_sigm(self.a, f_s[self.hidden_size*4:self.hidden_size*4+1, :])
         # print z_hat
 
-        one = Variable(torch.ones(f.size()), requires_grad=False).cuda()
+        one = Variable(torch.ones(f.size()).cuda(), requires_grad=False)
         z = z.expand_as(f)
         z_bottom = z_bottom.expand_as(f)
 
@@ -103,19 +104,18 @@ class HM_LSTM(Module):
         time_steps = inputs.size(1)
         batch_size = inputs.size(0)
         outputs = []
-        h_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float(), requires_grad=False).cuda()
-        c_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float(), requires_grad=False).cuda()
-        z_t1 = Variable(torch.zeros(1, batch_size).float(), requires_grad=False).cuda()
-        h_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float(), requires_grad=False).cuda()
-        c_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float(), requires_grad=False).cuda()
-        z_t2 = Variable(torch.zeros(1, batch_size).float(), requires_grad=False).cuda()
-        z_one = Variable(torch.ones(1, batch_size).float(), requires_grad=False).cuda()
+        h_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
+        c_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
+        z_t1 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
+        h_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
+        c_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
+        z_t2 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
+        z_one = Variable(torch.ones(1, batch_size).float().cuda(), requires_grad=False)
 
         for t in range(time_steps):
             h_t1, c_t1, z_t1 = self.cell_1(c=c_t1, h_bottom=inputs[:, t, :].t(), h=h_t1, h_top=h_t2, z=z_t1, z_bottom=z_one)
-            h_t2, c_t2, z_t2 = self.cell_2(c=c_t2, h_bottom=h_t1, h=h_t2, h_top=None, z=z_t2, z_bottom=z_t1)
+            h_t2, c_t2, z_t2 = self.cell_2(c=c_t2, h_bottom=h_t1, h=h_t2, h_top=None, z=z_t2, z_bottom=z_t1)  # 0.01s used
             outputs += [h_t1, h_t2, z_t1, z_t2]
-
         return outputs
 
 

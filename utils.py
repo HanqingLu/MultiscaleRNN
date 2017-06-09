@@ -4,6 +4,8 @@ import torch.nn as nn
 from torch import functional as F
 from torch.nn import Module
 import time
+import cPickle as pkl
+from collections import OrderedDict
 
 
 def hard_sigm(a, x):
@@ -21,14 +23,37 @@ class masked_NLLLoss(Module):
         super(masked_NLLLoss, self).__init__()
 
     def forward(self, cost, inputs, mask):
-        # inputs.size = mask.size = batch_size * 1
+        # inputs.size = mask.size = batch_size
         # cost.size = batch_size * dict_size
 
-        loss = Variable(torch.zeros(inputs.size(0))).cuda()
-        # cost_flat = cost.flatten()
-        # inputs_flat = inputs.flatten()
-        # inputs_flat_idx = Variable(torch.arange(inputs.size(0))*cost.size(1)+)
-        for i in range(inputs.size(0)):
-            loss[i] = - cost[i, inputs[i]] * mask[i]
-        # print "NLLLoss time", time.time() - start_time
+        # The following version is too slow, deprecated now
+        # loss = Variable(torch.zeros(inputs.size(0))).cuda()
+        # for i in range(inputs.size(0)):
+        #     loss[i] = - cost[i, inputs[i]] * mask[i]
+
+        # The following version is much faster
+        batch_size, dict_size = cost.size()
+        cost_flat = cost.view(batch_size*dict_size)
+        inputs_flat = torch.arange(0, inputs.size(0)).cuda().long()
+        inputs_flat_idx = torch.mul(inputs_flat, dict_size) + inputs
+        loss = -cost_flat[inputs_flat_idx] * mask
+
         return loss
+
+
+def reverse(sent, dict_path):
+    dictionary = pkl.load(open(dict_path, 'r'))
+    dict_r = OrderedDict()
+    for element in dictionary:
+        dict_r[dictionary[element]] = element
+    dict_r[1] = 'UNK'
+    dict_r[0] = 'EOS'
+
+    sent = sent.cpu().numpy()
+    sent_str = []
+    for i in range(len(sent)):
+        sent_str += [dict_r[sent[i]]]
+
+    print 'a sentence:',  ' '.join(sent_str)
+
+

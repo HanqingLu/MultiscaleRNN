@@ -41,7 +41,7 @@ class TextIterator:
                     raise IOError
                 ss = unicode(ss, 'utf8')
 
-                ss = list(ss.replace(' ', '').strip('\n'))
+                ss = list(ss.replace(' ', '').strip('\r\n'))
 
                 ss = [self.dict[w] if w in self.dict else 1 for w in ss]
                 if self.dict_size > 0:
