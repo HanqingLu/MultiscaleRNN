@@ -44,19 +44,19 @@ def validation(valid, HM_model):
         inputs, mask = prepare_data(batch)
         # print reverse(inputs[0, :], '../data/dict.pkl')
         probs = HM_model(inputs, mask)
-        PPL = 0.0
         # print probs
-        PPL += torch.exp(probs.data/mask.sum(1)).mean(0)
+        PPL = probs.mean(0)
         total_PPL += PPL
 
     return total_PPL/it
 
 
 def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
-          size_list=[512, 512], dict_size=5000, embed_size=128,
-          batch_size=80, maxlen=100, learning_rate=0.1, max_epoch=100,
+          size_list=[512, 512], dict_size=5000, embed_size=128, batch_size=80, maxlen=100,
+          learning_rate=0.1, clip=1, max_epoch=100,
           valid_iter=1, show_iter=1, init='model.init.pt', reload_=True, saveto='model.pt'):
-
+    model_params = locals().copy()
+    print model_params
     # dict = pkl.load(open(dict_path, 'r'))
     train = TextIterator(data_path=data_path[0], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
     valid = TextIterator(data_path=data_path[1], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
@@ -66,17 +66,16 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
     if reload_ and os.path.exists(init):
         print "Reloading model parameters from ", init
         with open(init, 'rb') as f:
-            torch.load(f)
+            HM_model = torch.load(f)
         print "Done"
     else:
         print "Random Initialization Because:", "reload_ = ", reload_, "path exists = ", os.path.exists(init)
+        print "Build model..."
+        HM_model = HM_Net(a, size_list, dict_size, embed_size)
+        HM_model = HM_model.cuda()
+        print "Done"
 
-    print "Build model..."
-    HM_model = HM_Net(a, size_list, dict_size, embed_size)
-    HM_model = HM_model.cuda()
-    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
-    print "Done"
-
+    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate, momentum=0.9)
     it = 0
     start_time = time.time()
 
@@ -94,14 +93,15 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
             batch_loss = HM_model(inputs, mask)  # 3s used
             loss = batch_loss.sum(0)
             loss.backward()  # 3s used
+            nn.utils.clip_grad_norm(HM_model.parameters(), clip)
             optimizer.step()  # 0.001s used
 
             if it % show_iter == 0:
-                print 'iter: ', it, ' elapse:', time.time() - start_time , ' train loss:', loss.data
+                print 'iter: ', it, ' elapse:', time.time() - start_time, ' train loss:', loss.data
 
             if it % valid_iter == 0:
                 PPL = validation(valid, HM_model)
-                print 'iter: ', it, ' perplexity: ', PPL
+                print 'iter: ', it, ' valid perplexity: ', PPL
                 save_path = saveto + '_iter' + str(it)
                 save_model(save_path, HM_model)
                 print 'iter: ', it, ' save to ', save_path
