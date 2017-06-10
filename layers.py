@@ -70,7 +70,7 @@ class HM_LSTMCell(Module):
         #     c_new = i * g
         #     h_new = o * Func.tanh(c_new)
 
-        z_new = bound(z_hat).float()
+        z_new = bound()(z_hat)
 
         return h_new, c_new, z_new
 

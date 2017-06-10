@@ -5,7 +5,7 @@ import torch.nn as nn
 from torch.autograd import Variable
 import time
 import cPickle as pkl
-from data import TextIterator
+from data import TextIterator, PTBIterator
 import torch.optim as optim
 import numpy
 import torch.nn.functional as Func
@@ -42,10 +42,9 @@ def validation(valid, HM_model):
     for batch in valid:
         it += 1
         inputs, mask = prepare_data(batch)
-        # print reverse(inputs[0, :], '../data/dict.pkl')
+        # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
         probs = HM_model(inputs, mask)
-        # print probs
-        PPL = probs.mean(0)
+        PPL = probs.data.mean(0)
         total_PPL += PPL
 
     return total_PPL/it
@@ -58,8 +57,10 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
     model_params = locals().copy()
     print model_params
     # dict = pkl.load(open(dict_path, 'r'))
-    train = TextIterator(data_path=data_path[0], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
-    valid = TextIterator(data_path=data_path[1], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
+    # train = TextIterator(data_path=data_path[0], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
+    # valid = TextIterator(data_path=data_path[1], dict=dict_path, batch_size=batch_size, maxlen=maxlen, dict_size=dict_size)
+    train = PTBIterator(data_path='../data/PTB/train.txt', dict='../data/PTB/dict.pkl', batch_size=batch_size, maxlen=35)
+    valid = PTBIterator(data_path='../data/PTB/valid.txt', dict='../data/PTB/dict.pkl', batch_size=batch_size, maxlen=35)
 
     a = 1.0
 
@@ -74,6 +75,9 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
         HM_model = HM_Net(a, size_list, dict_size, embed_size)
         HM_model = HM_model.cuda()
         print "Done"
+
+    PPL = validation(valid, HM_model)
+    print 'start from valid perplexity: ', PPL
 
     optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate, momentum=0.9)
     it = 0
@@ -90,6 +94,7 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 continue
             optimizer.zero_grad()  # 0.0001s used
             inputs, mask = prepare_data(batch)  # 0.002s used
+            # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
             batch_loss = HM_model(inputs, mask)  # 3s used
             loss = batch_loss.sum(0)
             loss.backward()  # 3s used

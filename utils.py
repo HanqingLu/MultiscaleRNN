@@ -15,7 +15,8 @@ def hard_sigm(a, x):
 
 
 # def bound(x):
-#     return x > 0.5
+#     output = x > 0.5
+#     return output.float()
 
 
 class bound(Function):
@@ -23,18 +24,17 @@ class bound(Function):
         # forward : x -> output
         self.save_for_backward(x)
         output = x > 0.5
-        return output
+        return output.float()
 
     def backward(self, output_grad):
         # backward: output_grad -> x_grad
-        x = self.to_save[0]
+        x = self.saved_tensors
         x_grad = None
 
         if self.needs_input_grad[0]:
             x_grad = output_grad.clone()
 
         return x_grad
-
 
 
 class masked_NLLLoss(Module):
