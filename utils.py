@@ -1,4 +1,4 @@
-from torch.autograd import Variable
+from torch.autograd import Variable, Function
 import torch
 import torch.nn as nn
 from torch import functional as F
@@ -14,8 +14,27 @@ def hard_sigm(a, x):
     return output
 
 
-def bound(x):
-    return x > 0.5
+# def bound(x):
+#     return x > 0.5
+
+
+class bound(Function):
+    def forward(self, x):
+        # forward : x -> output
+        self.save_for_backward(x)
+        output = x > 0.5
+        return output
+
+    def backward(self, output_grad):
+        # backward: output_grad -> x_grad
+        x = self.to_save[0]
+        x_grad = None
+
+        if self.needs_input_grad[0]:
+            x_grad = output_grad.clone()
+
+        return x_grad
+
 
 
 class masked_NLLLoss(Module):

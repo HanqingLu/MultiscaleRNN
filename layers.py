@@ -5,20 +5,6 @@ from torch.nn import Module, Parameter
 import math
 from utils import hard_sigm, bound
 import time
-# class bound(Function):
-#     def forward(self, x):
-#         self.save_for_backward(x)
-#         if x > 0.5:
-#             output = 1
-#         else:
-#             output = 0
-#
-#         return output
-#
-#     def backward(self, grad_output):
-#         x = self.saved_tensors
-#         if self.needs_input_grad[0]:
-#             grad_input =
 
 
 class HM_LSTMCell(Module):
