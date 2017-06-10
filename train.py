@@ -42,7 +42,7 @@ def validation(valid, HM_model):
     for batch in valid:
         it += 1
         inputs, mask = prepare_data(batch)
-        # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
+        print reverse(inputs[0, :], '../data/PTB/dict.pkl')
         probs = HM_model(inputs, mask)
         PPL = probs.data.mean(0)
         total_PPL += PPL
