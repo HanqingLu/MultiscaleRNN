@@ -16,19 +16,21 @@ from utils import reverse
 def prepare_data(seqs_data):
     lengths_data = [len(s) for s in seqs_data]
     n_samples = len(seqs_data)
-    maxlen_data = numpy.max(lengths_data) + 1
+    maxlen_data = numpy.max(lengths_data)  # + 1
 
     data = numpy.zeros((maxlen_data, n_samples)).astype('int64')
-    data_mask = numpy.zeros((maxlen_data, n_samples)).astype('float32')
+    target = numpy.zeros((maxlen_data, n_samples)).astype('int64')
+    mask = numpy.zeros((maxlen_data, n_samples)).astype('float32')
 
     for idx, sentence in enumerate(seqs_data):
         data[:lengths_data[idx], idx] = sentence
-        data_mask[:lengths_data[idx] + 1, idx] = 1.
-
+        mask[:lengths_data[idx], idx] = 1.
+        target[:lengths_data[idx], idx] = sentence[1:]+[0]
     data = torch.from_numpy(data).t()
-    data_mask = torch.from_numpy(data_mask).t()
+    target = torch.from_numpy(target).t()
+    mask = torch.from_numpy(mask).t()
 
-    return data.cuda(), data_mask.cuda()
+    return data.cuda(), target.cuda(), mask.cuda()
 
 
 def save_model(path, HM_model):
@@ -41,13 +43,13 @@ def validation(valid, HM_model):
     it = 0
     for batch in valid:
         it += 1
-        inputs, mask = prepare_data(batch)
-        print reverse(inputs[0, :], '../data/PTB/dict.pkl')
-        probs = HM_model(inputs, mask)
-        PPL = probs.data.mean(0)
+        inputs, target, mask = prepare_data(batch)
+        # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
+        probs = HM_model(inputs, target, mask)
+        PPL = torch.exp(probs.data/mask.sum(1)).mean(0)
         total_PPL += PPL
 
-    return total_PPL/it
+    return (total_PPL/it).cpu().numpy()[0]
 
 
 def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
@@ -62,8 +64,6 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
     train = PTBIterator(data_path='../data/PTB/train.txt', dict='../data/PTB/dict.pkl', batch_size=batch_size, maxlen=35)
     valid = PTBIterator(data_path='../data/PTB/valid.txt', dict='../data/PTB/dict.pkl', batch_size=batch_size, maxlen=35)
 
-    a = 1.0
-
     if reload_ and os.path.exists(init):
         print "Reloading model parameters from ", init
         with open(init, 'rb') as f:
@@ -72,7 +72,7 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
     else:
         print "Random Initialization Because:", "reload_ = ", reload_, "path exists = ", os.path.exists(init)
         print "Build model..."
-        HM_model = HM_Net(a, size_list, dict_size, embed_size)
+        HM_model = HM_Net(1.0, size_list, dict_size, embed_size)
         HM_model = HM_model.cuda()
         print "Done"
 
@@ -82,10 +82,14 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
     optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate, momentum=0.9)
     it = 0
     start_time = time.time()
+    lastPPL = 100000.0
+    break_flag = False
 
     for epoch in range(max_epoch):
         print "start training epoch ", str(epoch)
-
+        # slope annealing trick
+        HM_model.HM_LSTM.cell_1.a += 0.04
+        HM_model.HM_LSTM.cell_1.a += 0.04
         for batch in train:
             it += 1
             if batch is None:
@@ -93,9 +97,8 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 it -= 1
                 continue
             optimizer.zero_grad()  # 0.0001s used
-            inputs, mask = prepare_data(batch)  # 0.002s used
-            # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
-            batch_loss = HM_model(inputs, mask)  # 3s used
+            inputs, target, mask = prepare_data(batch)  # 0.002s used
+            batch_loss = HM_model(inputs, target, mask)  # 3s used
             loss = batch_loss.sum(0)
             loss.backward()  # 3s used
             nn.utils.clip_grad_norm(HM_model.parameters(), clip)
@@ -110,4 +113,11 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 save_path = saveto + '_iter' + str(it)
                 save_model(save_path, HM_model)
                 print 'iter: ', it, ' save to ', save_path
+                if abs(PPL-lastPPL) < 0.1:
+                    print 'update too slow, shut down!'
+                    break_flag =True
+                    break
+
+        if break_flag:
+            break
 

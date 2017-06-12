@@ -57,17 +57,17 @@ class HM_LSTMCell(Module):
         z = z.expand_as(f)
         z_bottom = z_bottom.expand_as(f)
 
-        c_new = z * (f * c + i * g) + (one - z) * (one - z_bottom) * c + (one - z) * z_bottom * i * g
+        c_new = z * (i * g) + (one - z) * (one - z_bottom) * c + (one - z) * z_bottom * (f * c + i * g)
         h_new = z * o * Func.tanh(c_new) + (one - z) * (one - z_bottom) * h + (one - z) * z_bottom * o * Func.tanh(c_new)
 
-        # if z == 1:
-        #     c_new = f * c + i * g
+        # if z == 1: (FLUSH)
+        #     c_new = i * g
         #     h_new = o * Func.tanh(c_new)
-        # elif z_bottom == 0:
+        # elif z_bottom == 0: (COPY)
         #     c_new = c
         #     h_new = h
-        # else:
-        #     c_new = i * g
+        # else: (UPDATE)
+        #     c_new = f * c + i * g
         #     h_new = o * Func.tanh(c_new)
 
         z_new = bound()(z_hat)

@@ -24,7 +24,7 @@ class HM_Net(Module):
         self.logsoftmax = nn.LogSoftmax()
         self.loss = masked_NLLLoss()
 
-    def forward(self, inputs, mask):
+    def forward(self, inputs, target, mask):
         # inputs : batch_size * time_steps
         # mask : batch_size * time_steps
 
@@ -52,6 +52,12 @@ class HM_Net(Module):
 
             word = self.logsoftmax(h_e)  # batch_size * dict_size
 
-            batch_loss += self.loss(word, inputs[:, i], mask[:, i])  # batch_size * 1
+            # if i > 1:
+            #     break
+
+            # for j in range(80):
+            #     print inputs[j, i]
+            #     print word[j, inputs[j, i]]
+            batch_loss += self.loss(word, target[:, i], mask[:, i])  # batch_size * 1
 
         return batch_loss

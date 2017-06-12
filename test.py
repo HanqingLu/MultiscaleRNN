@@ -14,7 +14,7 @@ def test(data_path, model_path, dict_path, batch_size, maxlen):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('-data', type=str, default="../data/PTB/test.txt", help="data path")
-    parser.add_argument('-model', type=str, default="model.pt_iter500", help="model path")
+    parser.add_argument('-model', type=str, default="model.pt_iter2000", help="model path")
     args = parser.parse_args()
 
     test(data_path=args.data, model_path=args.model, dict_path='../data/PTB/dict.pkl',

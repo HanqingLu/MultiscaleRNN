@@ -56,7 +56,6 @@ class masked_NLLLoss(Module):
         inputs_flat = torch.arange(0, inputs.size(0)).cuda().long()
         inputs_flat_idx = torch.mul(inputs_flat, dict_size) + inputs
         loss = -cost_flat[inputs_flat_idx] * mask
-
         return loss
 
 
