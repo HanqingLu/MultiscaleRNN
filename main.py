@@ -12,6 +12,6 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
-          size_list=[512, 512], dict_size=10000, embed_size=650, batch_size=args.batch, maxlen=100,
+          size_list=[650, 650], dict_size=10000, embed_size=650, batch_size=args.batch, maxlen=100,
           learning_rate=args.lr, clip=args.clip, max_epoch=40,
           valid_iter=500, show_iter=500, init=args.init, reload_=args.reload, saveto='model-1/model.pt')

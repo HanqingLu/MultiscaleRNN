@@ -118,9 +118,10 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 if PPL < bestPPL:
                     bestPPL = PPL
                 else:
-                    learning_rate /= 4.0
-                    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
-                    print "annealing learning rate to", learning_rate
+                    if learning_rate > 0.04:
+                        learning_rate /= 4.0
+                        optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
+                        print "annealing learning rate to", learning_rate
 
         # if break_flag:
         #     break
