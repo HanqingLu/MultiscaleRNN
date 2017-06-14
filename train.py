@@ -17,7 +17,6 @@ def prepare_data(seqs_data):
     lengths_data = [len(s) for s in seqs_data]
     n_samples = len(seqs_data)
     maxlen_data = numpy.max(lengths_data)  # + 1
-
     data = numpy.zeros((maxlen_data, n_samples)).astype('int64')
     target = numpy.zeros((maxlen_data, n_samples)).astype('int64')
     mask = numpy.zeros((maxlen_data, n_samples)).astype('float32')
@@ -38,18 +37,20 @@ def save_model(path, HM_model):
         torch.save(HM_model, f)
 
 
-def validation(valid, HM_model):
-    total_PPL = 0.0
+def evaluate(dataset, HM_model):
+    HM_model.eval()  # disable dropout
+
+    total_loss = 0.0
     it = 0
-    for batch in valid:
+    for batch in dataset:
         it += 1
         inputs, target, mask = prepare_data(batch)
         # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
-        probs = HM_model(inputs, target, mask)
-        PPL = torch.exp(probs.data/mask.sum(1)).mean(0)
-        total_PPL += PPL
-
-    return (total_PPL/it).cpu().numpy()[0]
+        loss = HM_model(inputs, target, mask)
+        total_loss += loss.data
+    PPL = torch.exp(total_loss/it)
+    HM_model.train()  # when return to trainning process, enable dropout
+    return PPL.cpu().numpy()[0]
 
 
 def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
@@ -76,20 +77,22 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
         HM_model = HM_model.cuda()
         print "Done"
 
-    PPL = validation(valid, HM_model)
+    PPL = evaluate(valid, HM_model)
     print 'start from valid perplexity: ', PPL
-
-    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate, momentum=0.9)
+    # optimizer = optim.Adam(HM_model.parameters(), lr=0.002)
+    # optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
+    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
+    # optimizer = optim.Adadelta(HM_model.parameters(), lr=learning_rate)
     it = 0
     start_time = time.time()
-    lastPPL = 100000.0
+    bestPPL = 100000.0
     break_flag = False
 
     for epoch in range(max_epoch):
         print "start training epoch ", str(epoch)
         # slope annealing trick
-        HM_model.HM_LSTM.cell_1.a += 0.04
-        HM_model.HM_LSTM.cell_1.a += 0.04
+        # HM_model.HM_LSTM.cell_1.a += 0.04
+        # HM_model.HM_LSTM.cell_1.a += 0.04
         for batch in train:
             it += 1
             if batch is None:
@@ -98,8 +101,7 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 continue
             optimizer.zero_grad()  # 0.0001s used
             inputs, target, mask = prepare_data(batch)  # 0.002s used
-            batch_loss = HM_model(inputs, target, mask)  # 3s used
-            loss = batch_loss.sum(0)
+            loss = HM_model(inputs, target, mask)  # 3s used
             loss.backward()  # 3s used
             nn.utils.clip_grad_norm(HM_model.parameters(), clip)
             optimizer.step()  # 0.001s used
@@ -108,16 +110,18 @@ def train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../da
                 print 'iter: ', it, ' elapse:', time.time() - start_time, ' train loss:', loss.data
 
             if it % valid_iter == 0:
-                PPL = validation(valid, HM_model)
+                PPL = evaluate(valid, HM_model)
                 print 'iter: ', it, ' valid perplexity: ', PPL
                 save_path = saveto + '_iter' + str(it)
                 save_model(save_path, HM_model)
                 print 'iter: ', it, ' save to ', save_path
-                if abs(PPL-lastPPL) < 0.1:
-                    print 'update too slow, shut down!'
-                    break_flag =True
-                    break
+                if PPL < bestPPL:
+                    bestPPL = PPL
+                else:
+                    learning_rate /= 4.0
+                    optimizer = optim.SGD(HM_model.parameters(), lr=learning_rate)
+                    print "annealing learning rate to", learning_rate
 
-        if break_flag:
-            break
+        # if break_flag:
+        #     break
 

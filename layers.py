@@ -98,10 +98,18 @@ class HM_LSTM(Module):
         z_t2 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
         z_one = Variable(torch.ones(1, batch_size).float().cuda(), requires_grad=False)
 
+        h_1 = []
+        h_2 = []
+        z_1 = []
+        z_2 = []
         for t in range(time_steps):
             h_t1, c_t1, z_t1 = self.cell_1(c=c_t1, h_bottom=inputs[:, t, :].t(), h=h_t1, h_top=h_t2, z=z_t1, z_bottom=z_one)
             h_t2, c_t2, z_t2 = self.cell_2(c=c_t2, h_bottom=h_t1, h=h_t2, h_top=None, z=z_t2, z_bottom=z_t1)  # 0.01s used
-            outputs += [h_t1, h_t2, z_t1, z_t2]
-        return outputs
+            h_1 += [h_t1]
+            h_2 += [h_t2]
+            z_1 += [z_t1]
+            z_2 += [z_t2]
+
+        return torch.stack(h_1, dim=1), torch.stack(h_2, dim=1), torch.stack(z_1, dim=1), torch.stack(z_2, dim=1)
 
 
