@@ -19,7 +19,7 @@ def test(data_path, model_path, options_path, dict_path):
     test_data = batchify(corpus.test, model_params['batch_size'])
     print "Done"
 
-    PPL = evaluatePTB(test_data, model, model_params)
+    PPL = evaluatePTB(test_data, model, model_params, corpus.dictionary)
     print 'test perplexity: ', PPL
 
 if __name__ == '__main__':

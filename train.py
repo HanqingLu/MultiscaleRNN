@@ -45,7 +45,7 @@ def evaluate(dataset, HM_model):
     for batch in dataset:
         it += 1
         inputs, target, mask = prepare_data(batch)
-        # print reverse(inputs[0, :], '../data/PTB/dict.pkl')
+        # reverse(inputs[0, :], '../data/PTB/dict.pkl')
         loss = HM_model(inputs, target, mask)
         total_loss += loss.data
     PPL = torch.exp(total_loss/it)

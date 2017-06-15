@@ -50,7 +50,7 @@ class HM_Net(Module):
         h_e = self.relu(h_e1 + h_e2)  # batch_size*time_steps, hidden_size
         batch_loss = self.loss(h_e, Variable(target))
 
-        return batch_loss, hidden
+        return batch_loss, hidden, z_1, z_2
 
     def init_hidden(self, batch_size):
         h_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)

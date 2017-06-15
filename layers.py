@@ -51,7 +51,6 @@ class HM_LSTMCell(Module):
         o = Func.sigmoid(f_s[self.hidden_size*2:self.hidden_size*3, :])
         g = Func.tanh(f_s[self.hidden_size*3:self.hidden_size*4, :])
         z_hat = hard_sigm(self.a, f_s[self.hidden_size*4:self.hidden_size*4+1, :])
-        # print z_hat
 
         one = Variable(torch.ones(f.size()).cuda(), requires_grad=False)
         z = z.expand_as(f)

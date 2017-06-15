@@ -100,24 +100,41 @@ def reverse(sent, dict_path):
     print 'a sentence:',  ' '.join(sent_str)
 
 
-def evaluatePTB(data_source, model, model_params):
+def segment(sents, dictionary, z_1, z_2, f):
+    batch_size = sents.size(0)
+    sents = sents.cpu().numpy()
+    z_1 = z_1.cpu().numpy()
+    z_2 = z_2.cpu().numpy()
+    # print z_2
+    for i in range(batch_size):
+        sent = sents[i, :]
+        seg1 = z_1[i, :, :]
+        seg2 = z_2[i, :, :]
+        sent_str = []
+        for j in range(len(sent)):
+            if seg1[j, 0] == 1:
+                sent_str += ['||']
+            if seg2[j, 0] == 1:
+                sent_str += ['|||']
+            sent_str += [dictionary.idx2word[sent[j]]]
+
+        f.writelines(' '.join(sent_str))
+
+
+def evaluatePTB(data_source, model, model_params, dictionary):
     model.eval()
     total_loss = 0
     hidden = model.init_hidden(model_params['batch_size'])
-
+    f = open('segmentation', 'w')
     it = 0
     for i in range(0, data_source.size(0) - 1, model_params['maxlen']):
         inputs, target = get_batch(data_source, i, model_params['maxlen'])
-        loss, hidden = model(inputs, target, hidden)
-        # print reverse(inputs[0, :], )
-        # print z_1[0, :]
-        # print z_2[0, :]
+        loss, hidden, z_1, z_2 = model(inputs, target, hidden)
+        segment(inputs, dictionary, z_1.data, z_2.data, f)
         total_loss += loss.data
         hidden = repackage_hidden(hidden)
         it += 1
-        if it >= 0:
-            break
-
+    f.close()
     PPL = torch.exp(total_loss/it)
     model.train()
     return PPL.cpu().numpy()[0]
