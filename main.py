@@ -1,5 +1,5 @@
 import argparse
-from train import train
+from train import train, train_PTB
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -11,7 +11,11 @@ if __name__ == '__main__':
     parser.add_argument('-clip', type=float, default=0.25, help="gradient clip")
     args = parser.parse_args()
 
-    train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
-          size_list=[650, 650], dict_size=10000, embed_size=650, batch_size=args.batch, maxlen=100,
-          learning_rate=args.lr, clip=args.clip, max_epoch=40,
-          valid_iter=500, show_iter=500, init=args.init, reload_=args.reload, saveto='model-1/model.pt')
+    # train(data_path=["../data/train.tok", "../data/valid.tok"], dict_path="../data/dict.pkl",
+    #       size_list=[650, 650], dict_size=10000, embed_size=650, batch_size=args.batch, maxlen=100,
+    #       learning_rate=args.lr, clip=args.clip, max_epoch=40,
+    #       valid_iter=500, show_iter=500, init=args.init, reload_=args.reload, saveto='model-1/model.pt')
+
+    train_PTB(size_list=[650, 650], dict_size=10000, embed_size=650, batch_size=args.batch, maxlen=35,
+              learning_rate=args.lr, clip=args.clip, max_epoch=40, valid_iter=500, show_iter=500,
+              init=args.init, reload_=args.reload, saveto='model-1/model.pt')

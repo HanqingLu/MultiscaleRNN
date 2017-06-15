@@ -85,17 +85,20 @@ class HM_LSTM(Module):
         self.cell_1 = HM_LSTMCell(self.input_size, self.size_list[0], self.size_list[1], self.a, False)
         self.cell_2 = HM_LSTMCell(self.size_list[0], self.size_list[1], None, self.a, True)
 
-    def forward(self, inputs):
+    def forward(self, inputs, hidden):
         # inputs.size = (batch_size, time steps, embed_size/input_size)
         time_steps = inputs.size(1)
         batch_size = inputs.size(0)
-        outputs = []
-        h_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
-        c_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
-        z_t1 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
-        h_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
-        c_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
-        z_t2 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
+
+        if hidden == None:
+            h_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
+            c_t1 = Variable(torch.zeros(self.size_list[0], batch_size).float().cuda(), requires_grad=False)
+            z_t1 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
+            h_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
+            c_t2 = Variable(torch.zeros(self.size_list[1], batch_size).float().cuda(), requires_grad=False)
+            z_t2 = Variable(torch.zeros(1, batch_size).float().cuda(), requires_grad=False)
+        else:
+            (h_t1, c_t1, z_t1, h_t2, c_t2, z_t2) = hidden
         z_one = Variable(torch.ones(1, batch_size).float().cuda(), requires_grad=False)
 
         h_1 = []
@@ -105,11 +108,12 @@ class HM_LSTM(Module):
         for t in range(time_steps):
             h_t1, c_t1, z_t1 = self.cell_1(c=c_t1, h_bottom=inputs[:, t, :].t(), h=h_t1, h_top=h_t2, z=z_t1, z_bottom=z_one)
             h_t2, c_t2, z_t2 = self.cell_2(c=c_t2, h_bottom=h_t1, h=h_t2, h_top=None, z=z_t2, z_bottom=z_t1)  # 0.01s used
-            h_1 += [h_t1]
-            h_2 += [h_t2]
-            z_1 += [z_t1]
-            z_2 += [z_t2]
+            h_1 += [h_t1.t()]
+            h_2 += [h_t2.t()]
+            z_1 += [z_t1.t()]
+            z_2 += [z_t2.t()]
 
-        return torch.stack(h_1, dim=1), torch.stack(h_2, dim=1), torch.stack(z_1, dim=1), torch.stack(z_2, dim=1)
+        hidden = (h_t1, c_t1, z_t1, h_t2, c_t2, z_t2)
+        return torch.stack(h_1, dim=1), torch.stack(h_2, dim=1), torch.stack(z_1, dim=1), torch.stack(z_2, dim=1), hidden
 
 

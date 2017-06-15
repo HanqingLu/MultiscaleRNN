@@ -59,6 +59,31 @@ class masked_NLLLoss(Module):
         return loss
 
 
+def repackage_hidden(h):
+    if type(h) == Variable:
+        return Variable(h.data)
+    else:
+        return tuple(repackage_hidden(v) for v in h)
+
+
+def batchify(data, bsz):
+    # Work out how cleanly we can divide the dataset into bsz parts.
+    nbatch = data.size(0) // bsz
+    # Trim off any extra elements that wouldn't cleanly fit (remainders).
+    data = data.narrow(0, 0, nbatch * bsz)
+    # Evenly divide the data across the bsz batches.
+    data = data.view(bsz, -1).t().contiguous()
+    data = data.cuda()
+    return data
+
+
+def get_batch(source, i, maxlen):
+    seq_len = min(maxlen, len(source) - 1 - i)
+    data = source[i:i+seq_len].t()
+    target = source[i+1:i+1+seq_len].t().contiguous().view(-1)
+    return data, target  # batch_size*time_steps
+
+
 def reverse(sent, dict_path):
     dictionary = pkl.load(open(dict_path, 'r'))
     dict_r = OrderedDict()
@@ -74,4 +99,26 @@ def reverse(sent, dict_path):
 
     print 'a sentence:',  ' '.join(sent_str)
 
+
+def evaluatePTB(data_source, model, model_params):
+    model.eval()
+    total_loss = 0
+    hidden = model.init_hidden(model_params['batch_size'])
+
+    it = 0
+    for i in range(0, data_source.size(0) - 1, model_params['maxlen']):
+        inputs, target = get_batch(data_source, i, model_params['maxlen'])
+        loss, hidden = model(inputs, target, hidden)
+        # print reverse(inputs[0, :], )
+        # print z_1[0, :]
+        # print z_2[0, :]
+        total_loss += loss.data
+        hidden = repackage_hidden(hidden)
+        it += 1
+        if it >= 0:
+            break
+
+    PPL = torch.exp(total_loss/it)
+    model.train()
+    return PPL.cpu().numpy()[0]
 
